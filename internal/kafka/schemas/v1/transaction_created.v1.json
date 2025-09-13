@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "transaction_created.v1",
+  "title": "transaction.created v1",
+  "type": "object",
+  "required": ["type", "id", "user_id", "amount", "timestamp", "version"],
+  "properties": {
+    "type": { "const": "transaction.created" },
+    "version": { "type": "integer", "const": 1 },
+    "id": { "type": "string", "format": "uuid" },
+    "user_id": { "type": "string", "format": "uuid" },
+    "amount": { "type": "number", "exclusiveMinimum": 0 },
+    "timestamp": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

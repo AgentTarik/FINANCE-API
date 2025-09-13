@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -13,20 +14,36 @@ import (
 )
 
 type Handlers struct {
-	Log    *zap.Logger
-	Users  storage.UserRepo
-	TxRepo storage.TxRepo
-	V      *validator.Validate
+	Log          *zap.Logger
+	Users        storage.UserRepo
+	TxRepo       storage.TxRepo
+	V            *validator.Validate
+	DBPing       func(ctx context.Context) error
+	KafkaEnabled bool
 
 	// Enqueuer function (send to worker)
 	Enqueue func(storage.Transaction)
 }
 
+// health handler
 func (h *Handlers) Health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second)
+	defer cancel()
+
+	db := "ok"
+	if h.DBPing != nil {
+		if err := h.DBPing(ctx); err != nil {
+			db = "down"
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":        "ok",
+		"db":            db,
+		"kafka_enabled": h.KafkaEnabled,
+	})
 }
 
-// Users
+// user handler
 
 func (h *Handlers) CreateUser(c *gin.Context) {
 	var req CreateUserRequest
@@ -71,7 +88,7 @@ func (h *Handlers) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, UserResponse{ID: u.ID.String(), Name: u.Name})
 }
 
-// Transactions
+// transactions handler
 
 func (h *Handlers) CreateTransaction(c *gin.Context) {
 	var req CreateTransactionRequest

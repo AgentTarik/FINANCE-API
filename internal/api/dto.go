@@ -16,10 +16,11 @@ type UserResponse struct {
 
 // Entrada para criar transação
 type CreateTransactionRequest struct {
-	TransactionID string  `json:"transaction_id" validate:"required,uuid4"`                              // UUID v4
-	UserID        string  `json:"user_id"        validate:"required,uuid4"`                              // UUID v4
-	Amount        float64 `json:"amount"         validate:"required"`                                    // valor
-	Timestamp     string  `json:"timestamp"      validate:"required,datetime=2006-01-02T15:04:05Z07:00"` // RFC3339
+	TransactionID string  `json:"transaction_id" validate:"required,uuid4"` // UUID v4
+	UserID        string  `json:"user_id"        validate:"required,uuid4"` // UUID v4
+	Amount        float64 `json:"amount" validate:"required,gt=0"`
+	// valor
+	Timestamp string `json:"timestamp"      validate:"required,datetime=2006-01-02T15:04:05Z07:00"` // RFC3339
 }
 
 // Saída de transação

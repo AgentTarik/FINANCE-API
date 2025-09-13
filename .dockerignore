@@ -1,0 +1,9 @@
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+configs/sql/*.bak
+**/*.log
+**/node_modules
+**/bin
+**/dist
