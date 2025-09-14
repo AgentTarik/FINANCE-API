@@ -116,6 +116,7 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 	userID, _ := uuid.Parse(req.UserID)
 	ts, err := time.Parse(time.RFC3339, req.Timestamp)
 	if err != nil {
+		telemetry.IncTransactionsFailed("validation")
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid timestamp (RFC3339 expected)"})
 		return
 	}
@@ -129,6 +130,7 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 		Status:        "queued",
 	}
 	if err := h.TxRepo.UpsertTx(t); err != nil {
+		telemetry.IncTransactionsFailed("db")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to persist"})
 		return
 	}
