@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/AgentTarik/finance-api/internal/api"
+	authpkg "github.com/AgentTarik/finance-api/internal/auth"
 	kafkapkg "github.com/AgentTarik/finance-api/internal/kafka"
 	"github.com/AgentTarik/finance-api/internal/storage"
 	txworker "github.com/AgentTarik/finance-api/internal/transaction"
@@ -95,6 +96,17 @@ func main() {
 	// DB health function for /health handler.
 	dbPing := ps.DB.PingContext
 
+	issuer, err := authpkg.NewJWTIssuerFromEnv()
+	if err != nil {
+		log.Fatal("jwt init failed (set JWT_SECRET)", zap.Error(err))
+	}
+
+	authH := &api.AuthHandlers{
+		Log:     log,
+		UsersDB: ps,
+		V:       v,
+		Tokens:  issuer,
+	}
 	// HTTP handlers
 	h := &api.Handlers{
 		Log:          log,
@@ -106,6 +118,7 @@ func main() {
 		Enqueue: func(t storage.Transaction) {
 			worker.Enqueue(t)
 		},
+		Auth: authH,
 	}
 
 	// Gin engine
@@ -115,7 +128,7 @@ func main() {
 	// Prometheus HTTP metrics middleware
 	r.Use(telemetry.PrometheusMiddleware())
 
-	// Simple structured HTTP log middleware 
+	// Simple structured HTTP log middleware
 	r.Use(func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
@@ -131,7 +144,6 @@ func main() {
 	api.SetupRoutes(r, h)
 
 	// Expose Prometheus metrics endpoint
-	
 
 	// Run worker and HTTP server
 	ctx, cancel := context.WithCancel(context.Background())

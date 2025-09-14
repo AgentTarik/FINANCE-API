@@ -11,6 +11,18 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+var (
+	ErrUserAlreadyExists = errors.New("user already exists")
+	ErrUserNotFound      = errors.New("user not found")
+)
+
+type UserAuth struct {
+	ID           uuid.UUID
+	Name         string
+	Email        string
+	PasswordHash string
+}
+
 type PostgresStore struct {
 	DB *sql.DB
 }
@@ -30,6 +42,29 @@ func NewPostgres(dsn string) (*PostgresStore, error) {
 		return nil, err
 	}
 	return &PostgresStore{DB: db}, nil
+}
+
+// CreateUserWithCredentials inserts a user with email + password hash.
+func (ps *PostgresStore) CreateUserWithCredentials(ctx context.Context, id uuid.UUID, name, email, passwordHash string) error {
+	_, err := ps.DB.ExecContext(ctx, `
+		INSERT INTO users (id, name, email, password_hash)
+		VALUES ($1, $2, $3, $4)
+	`, id, name, email, passwordHash)
+	return err
+}
+
+// GetUserAuthByEmail returns user auth info by email.
+func (ps *PostgresStore) GetUserAuthByEmail(ctx context.Context, email string) (*UserAuth, error) {
+	row := ps.DB.QueryRowContext(ctx, `
+		SELECT id, name, email, password_hash
+		FROM users
+		WHERE email = $1
+	`, email)
+	var u UserAuth
+	if err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 // Users Repo

@@ -1,17 +1,13 @@
 package storage
 
 import (
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-var (
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrUserNotFound      = errors.New("user not found")
-)
+
 
 type User struct {
 	ID   uuid.UUID

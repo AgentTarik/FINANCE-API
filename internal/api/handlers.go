@@ -24,6 +24,7 @@ type Handlers struct {
 
 	// Enqueuer function (send to worker)
 	Enqueue func(storage.Transaction)
+	Auth    *AuthHandlers
 }
 
 // health handler
@@ -45,36 +46,6 @@ func (h *Handlers) Health(c *gin.Context) {
 }
 
 // user handler
-
-func (h *Handlers) CreateUser(c *gin.Context) {
-	var req CreateUserRequest
-	if err := c.BindJSON(&req); err != nil {
-		telemetry.IncUsersCreateFailed("validation")
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.V.Struct(req); err != nil {
-		telemetry.IncUsersCreateFailed("validation")
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-		return
-	}
-
-	id, _ := uuid.Parse(req.ID)
-	if err := h.Users.CreateUser(storage.User{ID: id, Name: req.Name}); err != nil {
-		status := http.StatusInternalServerError
-		if err == storage.ErrUserAlreadyExists {
-			telemetry.IncUsersCreateFailed("conflict")
-			status = http.StatusConflict
-		} else {
-			telemetry.IncUsersCreateFailed("db")
-		}
-		c.JSON(status, gin.H{"error": err.Error()})
-		return
-	}
-	telemetry.IncUsersCreated()
-	c.JSON(http.StatusCreated, UserResponse{ID: req.ID, Name: req.Name})
-}
 
 func (h *Handlers) GetUser(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
@@ -101,6 +72,23 @@ func (h *Handlers) GetUser(c *gin.Context) {
 // transactions handler
 
 func (h *Handlers) CreateTransaction(c *gin.Context) {
+
+	// Extract authenticated user from context (set by JWT middleware).
+	uidVal, ok := c.Get("user_id")
+	if !ok || uidVal == nil {
+		// Should not happen because the route is protected, but guard anyway.
+		telemetry.IncTransactionsFailed("validation")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing auth context"})
+		return
+	}
+	authUserIDStr, _ := uidVal.(string)
+	authUserID, err := uuid.Parse(authUserIDStr)
+	if err != nil {
+		telemetry.IncTransactionsFailed("validation")
+		c.JSON(http.StatusForbidden, gin.H{"error": "invalid auth subject"})
+		return
+	}
+
 	var req CreateTransactionRequest
 	if err := c.BindJSON(&req); err != nil {
 		telemetry.IncTransactionsFailed("validation")
@@ -112,8 +100,8 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
 	txID, _ := uuid.Parse(req.TransactionID)
-	userID, _ := uuid.Parse(req.UserID)
 	ts, err := time.Parse(time.RFC3339, req.Timestamp)
 	if err != nil {
 		telemetry.IncTransactionsFailed("validation")
@@ -124,7 +112,7 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 	// store as queued
 	t := storage.Transaction{
 		TransactionID: txID,
-		UserID:        userID,
+		UserID:        authUserID,
 		Amount:        req.Amount,
 		Timestamp:     ts,
 		Status:        "queued",

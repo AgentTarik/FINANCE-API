@@ -24,6 +24,11 @@ services:
       DB_DSN: postgres://postgres:admin@postgres:5432/finance?sslmode=disable
       KAFKA_BROKERS: kafka:9092
       KAFKA_TOPIC_TRANSACTIONS: transactions.created
+      JWT_SECRET: "stone-secreta"
+      JWT_ISS: "finance-api"
+      JWT_AUD: "finance-api"
+      JWT_ACCESS_TTL: "15m"
+      
     depends_on:
       postgres:
         condition: service_healthy

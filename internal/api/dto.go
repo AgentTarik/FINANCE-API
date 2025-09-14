@@ -2,6 +2,19 @@ package api
 
 import "time"
 
+type RegisterRequest struct {
+	ID       string `json:"id" validate:"required,uuid4"`
+	Name     string `json:"name" validate:"required,min=2"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
+
 // Entrada para criar usuário
 type CreateUserRequest struct {
 	ID   string `json:"id"   validate:"required,uuid4"`        // UUID v4
@@ -17,7 +30,6 @@ type UserResponse struct {
 // Entrada para criar transação
 type CreateTransactionRequest struct {
 	TransactionID string  `json:"transaction_id" validate:"required,uuid4"` // UUID v4
-	UserID        string  `json:"user_id"        validate:"required,uuid4"` // UUID v4
 	Amount        float64 `json:"amount" validate:"required,gt=0"`
 	// valor
 	Timestamp string `json:"timestamp"      validate:"required,datetime=2006-01-02T15:04:05Z07:00"` // RFC3339
