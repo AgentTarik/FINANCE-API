@@ -1,6 +1,9 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/AgentTarik/finance-api/telemetry"
+	"github.com/gin-gonic/gin"
+)
 
 func SetupRoutes(r *gin.Engine, h *Handlers) {
 	v1 := r.Group("/v1")
@@ -14,4 +17,5 @@ func SetupRoutes(r *gin.Engine, h *Handlers) {
 		v1.GET("/reports", h.Reports)
 	}
 	r.GET("/health", h.Health)
+	r.GET("/metrics", telemetry.MetricsHandler())
 }

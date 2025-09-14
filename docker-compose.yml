@@ -29,7 +29,7 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    
+
   kafka:
     image: bitnami/kafka:3.7
     container_name: finance-kafka
@@ -62,6 +62,24 @@ services:
       - "8081:8080"
     environment:
       ADMINER_DEFAULT_SERVER: postgres
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: finance-prometheus
+    volumes:
+      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: finance-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
 
 volumes:
   db_data: {}

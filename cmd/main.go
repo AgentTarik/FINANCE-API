@@ -35,31 +35,28 @@ func registerCustomValidations(v *validator.Validate) {
 }
 
 func main() {
-	// logger
+	// Logger
 	log, _ := telemetry.NewLogger()
 	defer log.Sync()
 
-	// choose storage (Postgres if DB_DSN is set, otherwise in-memory)
-	var userRepo storage.UserRepo
-	var txRepo storage.TxRepo
+	// Metrics
+	// registers collectors and sets up middleware/endpoint later
+	telemetry.InitMetrics()
 
+	// Database
 	dsn := os.Getenv("DB_DSN")
-	if dsn != "" {
-		ps, err := storage.NewPostgres(dsn)
-		if err != nil {
-			log.Fatal("failed to connect postgres", zap.Error(err))
-		}
-		userRepo = ps
-		txRepo = ps
-		log.Info("using Postgres repository")
-	} else {
-		ms := storage.NewMemoryStore()
-		userRepo = ms
-		txRepo = ms
-		log.Info("using in-memory repository")
+	if dsn == "" {
+		log.Fatal("DB_DSN is required (e.g., postgres://postgres:admin@postgres:5432/finance?sslmode=disable)")
 	}
+	ps, err := storage.NewPostgres(dsn)
+	if err != nil {
+		log.Fatal("failed to connect to Postgres", zap.Error(err))
+	}
+	userRepo := ps
+	txRepo := ps
+	log.Info("using Postgres repository")
 
-	// Read envs and create producer
+	// Kafka Producer
 	brokersCSV := os.Getenv("KAFKA_BROKERS")
 	topic := os.Getenv("KAFKA_TOPIC_TRANSACTIONS")
 
@@ -73,29 +70,32 @@ func main() {
 		)
 		defer prod.Close()
 	} else {
-		log.Warn("kafka producer disabled (missing env)")
+		log.Warn("kafka producer disabled (missing KAFKA_BROKERS or KAFKA_TOPIC_TRANSACTIONS)")
 	}
 
-	// validator
+	// HTTP payload validator (Gin binding + go-playground/validator)
 	v := validator.New()
 	registerCustomValidations(v)
 
-	// create worker (async processing)
+	// Async worker (processing + Kafka publish)
 	worker := txworker.NewWorker(log, txRepo, 100, 150*time.Millisecond)
 
-	// inject publisher into worker (if available)
+	// Inject Kafka publisher
 	if prod != nil {
 		worker.SetPublisher(prod)
 	}
 
-	var dbPing func(ctx context.Context) error
-	if ps, ok := txRepo.(*storage.PostgresStore); ok {
-		dbPing = ps.DB.PingContext
+	// Event JSON schema validator
+	if evVal, err := kafkapkg.NewValidator(); err != nil {
+		log.Fatal("schema validator init failed", zap.Error(err))
 	} else {
-		dbPing = func(ctx context.Context) error { return nil }
+		worker.SetValidator(evVal)
 	}
 
-	// http handlers
+	// DB health function for /health handler.
+	dbPing := ps.DB.PingContext
+
+	// HTTP handlers
 	h := &api.Handlers{
 		Log:          log,
 		Users:        userRepo,
@@ -108,11 +108,14 @@ func main() {
 		},
 	}
 
-	// gin engine
+	// Gin engine
 	r := gin.New()
 	r.Use(gin.Recovery())
 
-	// simple http logging middleware
+	// Prometheus HTTP metrics middleware
+	r.Use(telemetry.PrometheusMiddleware())
+
+	// Simple structured HTTP log middleware 
 	r.Use(func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
@@ -124,17 +127,19 @@ func main() {
 		)
 	})
 
-	// routes
+	// App routes.
 	api.SetupRoutes(r, h)
 
-	// run worker loop
+	// Expose Prometheus metrics endpoint
+	
+
+	// Run worker and HTTP server
 	ctx, cancel := context.WithCancel(context.Background())
 	go worker.Run(ctx)
 
-	// http server
 	srv := &http.Server{Addr: ":8080", Handler: r}
 
-	// start server (async)
+	// Start server asynchronously.
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("server error", zap.Error(err))
@@ -142,7 +147,7 @@ func main() {
 	}()
 	log.Info("server started on :8080")
 
-	// graceful shutdown on SIGINT/SIGTERM
+	// Graceful shutdown on SIGINT/SIGTERM.
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	<-sig

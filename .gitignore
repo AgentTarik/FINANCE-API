@@ -1,0 +1,95 @@
+# -----------------------------
+# OS junk
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Go build artifacts
+# -----------------------------
+/finance-api            # binary built from ./cmd/api (adjust if you name it differently)
+bin/
+build/
+dist/
+out/
+tmp/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Coverage / test outputs
+coverage.out
+coverage.txt
+*.cover
+*.coverprofile
+
+# NOTE: Keep go.mod and go.sum tracked (do NOT ignore them)
+
+# -----------------------------
+# Logs
+# -----------------------------
+*.log
+**/*.log
+
+# -----------------------------
+# Editors / IDE
+# -----------------------------
+.vscode/
+.idea/
+*.iml
+
+# -----------------------------
+# Environment / local config
+# -----------------------------
+.env
+.env.*
+*.local
+*.local.*
+*.secret
+*.secret.*
+
+# direnv
+.envrc
+
+# -----------------------------
+# Docker / Compose
+# -----------------------------
+# Optional local overrides; keep the main compose file tracked
+docker-compose.override.yml
+
+# Named local data dirs if you ever bind-mount (usually you use Docker volumes)
+prometheus-data/
+grafana-data/
+kafka-data/
+jaeger-data/
+
+# -----------------------------
+# SQL artifacts (backups, temp)
+# -----------------------------
+configs/sql/*.bak
+configs/sql/*.backup
+configs/sql/*.tmp
+
+# -----------------------------
+# Prometheus/Grafana temp files
+# -----------------------------
+configs/prometheus/*.tmp
+configs/prometheus/*~ 
+
+# -----------------------------
+# Swagger (swaggo) generated docs
+# -----------------------------
+# Remove this block if you want swagger docs committed
+docs/
+
+# -----------------------------
+# Node (only if you add a small UI later)
+# -----------------------------
+node_modules/
+.npmrc
+# (Lockfiles are usually committed; ignore only if you know you won’t use Node here)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

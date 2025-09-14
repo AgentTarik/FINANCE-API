@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/AgentTarik/finance-api/internal/storage"
+	"github.com/AgentTarik/finance-api/telemetry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -48,11 +49,13 @@ func (h *Handlers) Health(c *gin.Context) {
 func (h *Handlers) CreateUser(c *gin.Context) {
 	var req CreateUserRequest
 	if err := c.BindJSON(&req); err != nil {
+		telemetry.IncUsersCreateFailed("validation")
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.V.Struct(req); err != nil {
+		telemetry.IncUsersCreateFailed("validation")
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
@@ -61,17 +64,22 @@ func (h *Handlers) CreateUser(c *gin.Context) {
 	if err := h.Users.CreateUser(storage.User{ID: id, Name: req.Name}); err != nil {
 		status := http.StatusInternalServerError
 		if err == storage.ErrUserAlreadyExists {
+			telemetry.IncUsersCreateFailed("conflict")
 			status = http.StatusConflict
+		} else {
+			telemetry.IncUsersCreateFailed("db")
 		}
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
+	telemetry.IncUsersCreated()
 	c.JSON(http.StatusCreated, UserResponse{ID: req.ID, Name: req.Name})
 }
 
 func (h *Handlers) GetUser(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
+		telemetry.IncUsersGet(false)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
@@ -82,9 +90,11 @@ func (h *Handlers) GetUser(c *gin.Context) {
 		if err == storage.ErrUserNotFound {
 			status = http.StatusNotFound
 		}
+		telemetry.IncUsersGet(false)
 		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
+	telemetry.IncUsersGet(true)
 	c.JSON(http.StatusOK, UserResponse{ID: u.ID.String(), Name: u.Name})
 }
 
@@ -93,10 +103,12 @@ func (h *Handlers) GetUser(c *gin.Context) {
 func (h *Handlers) CreateTransaction(c *gin.Context) {
 	var req CreateTransactionRequest
 	if err := c.BindJSON(&req); err != nil {
+		telemetry.IncTransactionsFailed("validation")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
 		return
 	}
 	if err := h.V.Struct(req); err != nil {
+		telemetry.IncTransactionsFailed("validation")
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}

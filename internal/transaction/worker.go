@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/AgentTarik/finance-api/internal/storage"
+	"github.com/AgentTarik/finance-api/telemetry"
 	"go.uber.org/zap"
 )
 
@@ -54,6 +55,7 @@ func (w *Worker) SetRetry(max int, baseBackoff time.Duration) {
 func (w *Worker) Enqueue(t storage.Transaction) {
 	select {
 	case w.ch <- t:
+		telemetry.SetWorkerQueueCurrent(len(w.ch))
 	default:
 		w.log.Warn("transaction queue full; dropping",
 			zap.String("tx_id", t.TransactionID.String()))
@@ -69,18 +71,19 @@ func (w *Worker) Run(ctx context.Context) {
 			return
 
 		case t := <-w.ch:
+			telemetry.SetWorkerQueueCurrent(len(w.ch))
 			// 1) simulated "processing"
 			time.Sleep(w.delay)
 
 			// 2) mark as processed and persist
 			t.Status = "processed"
 			if err := w.repo.UpsertTx(t); err != nil {
-				w.log.Error("db upsert failed", zap.Error(err),
-					zap.String("tx_id", t.TransactionID.String()))
+				telemetry.IncTransactionsFailed("db")
+				w.log.Error("db upsert failed", zap.Error(err), zap.String("tx_id", t.TransactionID.String()))
 				continue
 			}
-			w.log.Info("transaction processed",
-				zap.String("tx_id", t.TransactionID.String()))
+			telemetry.IncTransactionsProcessed()
+			w.log.Info("transaction processed", zap.String("tx_id", t.TransactionID.String()))
 
 			// 3) build the event for Kafka
 			evt := map[string]any{
@@ -95,6 +98,7 @@ func (w *Worker) Run(ctx context.Context) {
 			// 4) validate the event (schema)
 			if w.validator != nil {
 				if err := w.validator.Validate(evt); err != nil {
+					telemetry.IncTransactionsFailed("schema")
 					w.log.Error("schema validation failed",
 						zap.Error(err),
 						zap.String("tx_id", t.TransactionID.String()))
@@ -131,6 +135,7 @@ func (w *Worker) Run(ctx context.Context) {
 				cancel() // avoid leaking context
 
 				if err != nil {
+					telemetry.IncTransactionsFailed("kafka")
 					w.log.Error("kafka publish failed permanently",
 						zap.Error(err),
 						zap.String("tx_id", t.TransactionID.String()))
