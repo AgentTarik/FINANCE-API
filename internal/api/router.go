@@ -21,8 +21,11 @@ func SetupRoutes(r *gin.Engine, h *Handlers) {
 
 		protected.GET("/reports", h.Reports)
 		
+		v1.GET("/kafka/poll", h.KafkaPoll)
+
 		v1.GET("/health", h.Health)
 	}
+
 
 	r.GET("/metrics", telemetry.MetricsHandler())
 }
