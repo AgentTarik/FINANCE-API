@@ -27,9 +27,18 @@ type AuthHandlers struct {
 	Tokens  TokenIssuer
 }
 
-// DTOs
 
-
+// Register godoc
+// @Summary      Register a new user
+// @Description  Creates a user account.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        payload  body      RegisterRequest  true  "Register payload"
+// @Success      201      {object}  map[string]any
+// @Failure      400      {object}  map[string]string
+// @Failure      409      {object}  map[string]string
+// @Router       /auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -59,6 +68,18 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 	})
 }
 
+
+// Login godoc
+// @Summary      Login with email and password
+// @Description  Returns a short-lived JWT access token.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        payload  body      LoginRequest  true  "Login payload"
+// @Success      200      {object}  map[string]any
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Router       /auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

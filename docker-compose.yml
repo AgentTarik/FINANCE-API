@@ -28,7 +28,7 @@ services:
       JWT_ISS: "finance-api"
       JWT_AUD: "finance-api"
       JWT_ACCESS_TTL: "15m"
-      
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,10 +45,45 @@ services:
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true # DEV ONLY
       - ALLOW_PLAINTEXT_LISTENER=yes
     ports:
       - "9092:9092"
+    volumes:
+      - kafka_data:/bitnami/kafka # <-- persiste dados/tópicos
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  kafka-init:
+    image: bitnami/kafka:3.7
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/opt/bitnami/kafka/bin/kafka-topics.sh"]
+    command:
+      [
+        "--bootstrap-server",
+        "kafka:9092",
+        "--create",
+        "--if-not-exists",
+        "--topic",
+        "transactions.created",
+        "--partitions",
+        "1",
+        "--replication-factor",
+        "1",
+      ]
+    restart: "no"
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -88,3 +123,4 @@ services:
 
 volumes:
   db_data: {}
+  kafka_data: {}

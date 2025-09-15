@@ -27,7 +27,11 @@ type Handlers struct {
 	Auth    *AuthHandlers
 }
 
-// health handler
+// Health godoc
+// @Summary      Health check
+// @Tags         health
+// @Success      200  {object}  map[string]any
+// @Router       /health [get]
 func (h *Handlers) Health(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Second)
 	defer cancel()
@@ -69,8 +73,21 @@ func (h *Handlers) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, UserResponse{ID: u.ID.String(), Name: u.Name})
 }
 
-// transactions handler
-
+// CreateTransaction godoc
+// @Summary      Create a transaction
+// @Description  Enqueues a transaction; user is taken from JWT.
+// @Tags         transactions
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer <access token>"
+// @Param        payload  body      CreateTransactionRequest  true  "Transaction payload"
+// @Success      202      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      422      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /transactions [post]
 func (h *Handlers) CreateTransaction(c *gin.Context) {
 
 	// Extract authenticated user from context (set by JWT middleware).
@@ -132,6 +149,16 @@ func (h *Handlers) CreateTransaction(c *gin.Context) {
 	})
 }
 
+// ListTransactions godoc
+// @Summary      List transactions
+// @Description  Lists transactions for the authenticated user.
+// @Tags         transactions
+// @Security     BearerAuth
+// @Produce      json
+// @Param        Authorization header string true "Bearer <access token>"
+// @Success      200      {array}   storage.Transaction
+// @Failure      401      {object}  map[string]string
+// @Router       /transactions [get]
 func (h *Handlers) ListTransactions(c *gin.Context) {
 	txs, err := h.TxRepo.ListTx()
 	if err != nil {
@@ -151,6 +178,16 @@ func (h *Handlers) ListTransactions(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
+// Reports godoc
+// @Summary      Summary reports
+// @Description  Aggregations for the authenticated user.
+// @Tags         reports
+// @Security     BearerAuth
+// @Produce      json
+// @Param        Authorization header string true "Bearer <access token>"
+// @Success      200      {object}  map[string]any
+// @Failure      401      {object}  map[string]string
+// @Router       /reports [get]
 func (h *Handlers) Reports(c *gin.Context) {
 	// agregação simples: soma por usuário (apenas processed)
 	txs, err := h.TxRepo.ListTx()

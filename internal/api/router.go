@@ -20,7 +20,9 @@ func SetupRoutes(r *gin.Engine, h *Handlers) {
 		protected.GET("/transactions", h.ListTransactions)
 
 		protected.GET("/reports", h.Reports)
+		
+		v1.GET("/health", h.Health)
 	}
-	r.GET("/health", h.Health)
+
 	r.GET("/metrics", telemetry.MetricsHandler())
 }

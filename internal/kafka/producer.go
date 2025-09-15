@@ -13,6 +13,7 @@ type Producer struct {
 }
 
 func NewProducer(brokers []string, topic string) *Producer {
+	
 	return &Producer{
 		w: &kafka.Writer{
 			Addr:     kafka.TCP(brokers...),
@@ -35,3 +36,4 @@ func (p *Producer) Publish(ctx context.Context, key string, v any) error {
 }
 
 func (p *Producer) Close() error { return p.w.Close() }
+

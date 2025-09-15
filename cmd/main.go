@@ -16,6 +16,10 @@ import (
 	txworker "github.com/AgentTarik/finance-api/internal/transaction"
 	"github.com/AgentTarik/finance-api/telemetry"
 
+	docs "github.com/AgentTarik/finance-api/docs"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -143,7 +147,15 @@ func main() {
 	// App routes.
 	api.SetupRoutes(r, h)
 
-	// Expose Prometheus metrics endpoint
+	docs.SwaggerInfo.Title = "Finance API"
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.BasePath = "/v1"
+	docs.SwaggerInfo.Description = "Simple finance transactions API with JWT auth, Kafka events and metrics."
+	// Se você costuma acessar pela máquina local:
+	docs.SwaggerInfo.Schemes = []string{"http"}
+
+	// expor a UI do swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Run worker and HTTP server
 	ctx, cancel := context.WithCancel(context.Background())
